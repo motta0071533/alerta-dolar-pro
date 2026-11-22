@@ -356,6 +356,28 @@
     .trip-del { color: rgba(255,255,255,0.55); font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 8px; }
     .trip-del:hover { color: #FFFFFF; background: rgba(255,255,255,0.08); }
     @media (max-width: 400px) { .bnav-item { font-size: 10px; padding-left: 1px; padding-right: 1px; min-width: 0; } }
+
+    /* Captura de lead (aba Calculadora) + Painel Admin */
+    .field.compact { padding: 0 14px; }
+    .field.compact input, .field.compact textarea { font-size: 16px; font-weight: 600; padding: 12px 0; }
+    .field textarea { background: transparent; color: #FFFFFF; width: 100%; outline: none; resize: none; font-family: inherit; line-height: 1.4; }
+    .field input::placeholder, .field textarea::placeholder { color: rgba(255,255,255,0.4); font-weight: 500; }
+    .lead-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+    .lead-ok { display: flex; align-items: center; gap: 12px; }
+    .lead-ok.hidden { display: none; }
+    .lead-ok-ico { flex: none; width: 36px; height: 36px; border-radius: 999px; background: rgba(200,255,0,0.12); border: 1px solid rgba(200,255,0,0.5); display: inline-flex; align-items: center; justify-content: center; }
+    .btn-share { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 18px; font-size: 15px; font-weight: 800; color: #C8FF00; border: 1px solid rgba(200,255,0,0.5); border-radius: 12px; background: rgba(200,255,0,0.05); transition: background .15s ease, transform .15s ease; }
+    .btn-share:hover { background: rgba(200,255,0,0.1); }
+    .btn-share:active { transform: scale(0.98); }
+    .btn-share:focus-visible, .lead-hp:focus-visible { outline: 2px solid #C8FF00; outline-offset: 2px; }
+    .modal.admin-modal { width: min(94vw, 560px); background: #141414; border: 1px solid #C8FF00; }
+    #adminScrim { z-index: 55; }
+    .admin-stat { background: #101010; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; }
+    .admin-leads { max-height: 220px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; background: #101010; }
+    .admin-lead { padding: 10px 14px; }
+    .admin-lead + .admin-lead { border-top: 1px solid rgba(255,255,255,0.08); }
+    .admin-lead b { font-weight: 800; word-break: break-word; }
+    .admin-lead span { word-break: break-all; }
     @media (prefers-reduced-motion: reduce) { .trip-fill { transition: none; } }
   </style>
 </head>
@@ -366,7 +388,7 @@
       <button id="menuBtn" type="button" class="icon-btn" aria-label="Abrir menu" aria-expanded="false" aria-controls="drawer">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
-      <div class="flex min-w-0 flex-1 items-center gap-3">
+      <div id="brandTap" class="flex min-w-0 flex-1 items-center gap-3" style="-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none">
         <div class="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-white/10 bg-card">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3 17l6-6 4 4 8-8" stroke="#C8FF00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -881,6 +903,26 @@
       <p class="muted mt-2 text-[11px] leading-relaxed">Estimativa: considera cerca de 5,5% somados de spread bancário e IOF no cartão ou banco tradicional. O percentual real varia por instituição e operação, e a conta deste método não inclui taxas da corretora nem de rede.</p>
     </section>
 
+    <!-- Captura de lead discreta: resumo semanal -->
+    <section class="card mt-4 p-5 sm:p-6" id="leadCard" aria-labelledby="leadTitle">
+      <div id="leadFormWrap">
+        <h2 id="leadTitle" class="text-base font-extrabold leading-snug sm:text-lg">Receba o Resumo Semanal do Dólar &amp; Oportunidades</h2>
+        <p class="muted mt-1 text-xs leading-relaxed">Um resumo curto por semana com o que mexeu no câmbio e as melhores janelas de compra.</p>
+        <form id="leadForm" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" novalidate>
+          <div class="field compact"><input id="leadNome" name="nome" type="text" maxlength="80" autocomplete="name" placeholder="Seu Nome" aria-label="Seu Nome" /></div>
+          <div class="field compact"><input id="leadContato" name="contato" type="text" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="WhatsApp ou E-mail" aria-label="WhatsApp ou E-mail" required /></div>
+          <div class="lead-hp" aria-hidden="true"><label>Não preencha <input id="leadWebsite" name="website" type="text" tabindex="-1" autocomplete="off" /></label></div>
+          <button id="leadBtn" type="submit" class="btn-lime px-5 py-3.5 text-sm sm:col-span-2">Quero Receber Grátis</button>
+        </form>
+        <p id="leadMsg" class="mt-2 text-xs" style="color:#FFB020" role="status" aria-live="polite"></p>
+        <p class="muted mt-1 text-[11px] leading-relaxed">Grátis, sem spam. Você usa seu contato só para receber o resumo e pode pedir para sair quando quiser.</p>
+      </div>
+      <div id="leadDone" class="lead-ok hidden" role="status" aria-live="polite">
+        <span class="lead-ok-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8FF00" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <div><p class="text-base font-extrabold">Pronto, você está na lista!</p><p class="muted mt-0.5 text-xs">Vamos enviar o resumo semanal para o contato informado.</p></div>
+      </div>
+    </section>
+
     <!-- Vitrine do guia oficial (link e preço vêm de KIWIFY_CHECKOUT_URL / GUIDE_PRICE no script) -->
     <section class="guide-card mt-4 p-6 sm:p-8" id="guiaCard" aria-labelledby="guiaCardTitle">
       <span class="badge-outline-lime inline-block px-3 py-1 text-[10px]">GUIA OFICIAL</span>
@@ -1010,6 +1052,13 @@
       </div>
       <div class="divider mt-5 pt-4 text-right"><button id="tripReset" type="button" class="trip-del">Zerar Plano</button></div>
     </section>
+    <section class="mt-4" aria-label="Compartilhar o app">
+      <button id="tripShareBtn" type="button" class="btn-share">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+        Compartilhar App com Quem Vai Viajar
+      </button>
+      <p class="muted mt-2 px-1 text-center text-[11px]">Envie pelo WhatsApp para amigos e família que também vão comprar moeda.</p>
+    </section>
     <p class="muted mt-4 px-1 text-xs">Ferramenta informativa de planejamento. O Score mede desconto técnico e não garante o preço futuro. Não constitui recomendação de investimento.</p>
     </div>
     </main>
@@ -1052,6 +1101,63 @@
     </div>
 
     <p class="muted mt-4 text-[11px] leading-relaxed">O Score mede desconto técnico, não prevê o preço. Ferramenta informativa, sem recomendação de investimento.</p>
+  </div>
+
+  <!-- Modal: Painel Admin (privado: 5 toques no logo ou ?admin=1) -->
+  <div id="adminScrim" class="scrim" aria-hidden="true"></div>
+  <div id="adminModal" class="modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="adminTitle" aria-hidden="true">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <span class="badge-outline-lime inline-block px-3 py-1 text-[10px]">ADMIN</span>
+        <h2 id="adminTitle" class="mt-2 text-lg font-extrabold">Painel Admin</h2>
+      </div>
+      <button id="adminClose" type="button" class="icon-btn" aria-label="Fechar painel admin">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <form id="adminLogin" class="mt-4" novalidate>
+      <label for="adminSecret" class="muted text-xs font-semibold uppercase tracking-widest">Senha (CRON_SECRET)</label>
+      <div class="field compact mt-2"><input id="adminSecret" type="password" autocomplete="off" placeholder="Digite a senha admin" /></div>
+      <button id="adminLoginBtn" type="submit" class="btn-lime mt-3 w-full px-5 py-3.5 text-sm">Entrar</button>
+      <p id="adminLoginMsg" class="mt-2 text-xs" style="color:#FFB020" role="status" aria-live="polite"></p>
+    </form>
+
+    <div id="adminPanel" class="hidden">
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <div class="admin-stat"><p class="muted text-[10px] font-semibold uppercase tracking-widest">Aparelhos Ativos</p><p id="admDevices" class="num mt-1 text-2xl font-extrabold">—</p></div>
+        <div class="admin-stat"><p class="muted text-[10px] font-semibold uppercase tracking-widest">Preços-Alvo</p><p id="admTargets" class="num mt-1 text-2xl font-extrabold">—</p></div>
+        <div class="admin-stat"><p class="muted text-[10px] font-semibold uppercase tracking-widest">Planos de Viagem</p><p id="admTrips" class="num mt-1 text-2xl font-extrabold">—</p></div>
+        <div class="admin-stat"><p class="muted text-[10px] font-semibold uppercase tracking-widest">Total de Leads</p><p id="admLeads" class="num mt-1 text-2xl font-extrabold" style="color:#C8FF00">—</p></div>
+      </div>
+      <p id="admUpdated" class="muted num mt-2 text-[11px]">Atualizando…</p>
+
+      <div class="divider mt-4 pt-4">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-sm font-extrabold">Últimos leads</h3>
+          <div class="flex gap-2">
+            <button id="admCopy" type="button" class="btn-ghost px-3 py-2 text-xs">Copiar Todos os Contatos</button>
+            <button id="admCsv" type="button" class="btn-ghost px-3 py-2 text-xs">CSV</button>
+          </div>
+        </div>
+        <div id="admLeadList" class="admin-leads mt-3" tabindex="0" aria-label="Lista de leads"><p class="muted px-4 py-4 text-center text-xs">Nenhum lead ainda.</p></div>
+        <p id="admLeadMsg" class="muted mt-2 text-xs" role="status" aria-live="polite"></p>
+      </div>
+
+      <form id="admBroadcast" class="divider mt-4 pt-4" novalidate>
+        <h3 class="text-sm font-extrabold">Disparo geral de Push</h3>
+        <label for="admTitle" class="muted mt-3 block text-xs font-semibold uppercase tracking-widest">Título</label>
+        <div class="field compact mt-1"><input id="admTitle" type="text" maxlength="80" placeholder="Ex.: Dólar em queda hoje" /></div>
+        <label for="admBody" class="muted mt-3 block text-xs font-semibold uppercase tracking-widest">Mensagem</label>
+        <div class="field compact mt-1"><textarea id="admBody" rows="3" maxlength="300" placeholder="Texto da notificação"></textarea></div>
+        <label for="admUrl" class="muted mt-3 block text-xs font-semibold uppercase tracking-widest">Link ao tocar (opcional)</label>
+        <div class="field compact mt-1"><input id="admUrl" type="text" maxlength="300" autocapitalize="none" spellcheck="false" placeholder="/index.html#viagem" /></div>
+        <button id="admSend" type="submit" class="btn-lime mt-4 w-full px-5 py-3.5 text-sm">Enviar Push Agora para Todos</button>
+        <p id="admSendMsg" class="mt-2 text-xs" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="divider mt-4 pt-3 text-right"><button id="adminLogout" type="button" class="trip-del">Sair</button></div>
+    </div>
   </div>
 
   <!-- Modal: vitrine do guia -->
@@ -1125,6 +1231,8 @@
 // ---- VITRINE DO GUIA (Kiwify): edite só estas duas linhas ----
 const KIWIFY_CHECKOUT_URL = 'https://pay.kiwify.com.br/2VQUPhL';
 const GUIDE_PRICE = 'R$ 17,90';
+// Link divulgado no botão "Compartilhar App" (Modo Viagem). Troque aqui se usar domínio próprio.
+const SHARE_URL = 'https://alerta-dolar-pro.onrender.com';
 // --------------------------------------------------------------
 // Chave PÚBLICA VAPID (gerada com `npm run vapid`). Deve ser a mesma da variável VAPID_PUBLIC_KEY no Netlify.
 // Se deixar o texto COLE_AQUI..., o painel busca a chave em GET /api/subscribe.
@@ -3905,6 +4013,229 @@ function tripOnShow() { tripFillInputs(); tripRender(); tripRefresh(); }
   });
   setInterval(() => { if (!document.hidden && $('view-viagem').classList.contains('active')) tripRefresh(); }, 10000);
   tripFillInputs(); tripRender();
+})();
+
+/* =========================================================
+   CAPTURA DE LEAD · COMPARTILHAR NO WHATSAPP · PAINEL ADMIN
+   ========================================================= */
+(function leadCapture() {
+  const card = $('leadCard');
+  if (!card) return;
+  const KEY = 'adp_lead_done';
+  try { if (localStorage.getItem(KEY) === '1') { card.classList.add('hidden'); return; } } catch (e) { /* storage indisponível */ }
+
+  const form = $('leadForm'), msg = $('leadMsg'), btn = $('leadBtn');
+  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function validContact(v) {
+    v = v.trim();
+    if (v.indexOf('@') !== -1) return EMAIL.test(v);
+    const d = v.replace(/\D/g, '');
+    return d.length >= 10 && d.length <= 13;
+  }
+
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const contato = $('leadContato').value.trim();
+    msg.style.color = '#FFB020';
+    if (!validContact(contato)) { msg.textContent = 'Informe um WhatsApp com DDD (ex.: 11 91234-5678) ou um e-mail válido.'; $('leadContato').focus(); return; }
+    msg.textContent = '';
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 12000);
+    try {
+      const r = await fetch('/api/leads', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
+        body: JSON.stringify({
+          nome: $('leadNome').value.trim(),
+          contato,
+          interesse: 'Resumo semanal · ' + ((ASSET && ASSET.short) || 'Geral'),
+          website: $('leadWebsite').value
+        })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Não foi possível enviar agora.');
+      try { localStorage.setItem(KEY, '1'); } catch (e) { /* ignorado */ }
+      $('leadFormWrap').classList.add('hidden');
+      $('leadDone').classList.remove('hidden');
+    } catch (e) {
+      msg.textContent = e.name === 'AbortError' ? 'A conexão demorou demais. Tente de novo.' : (e.message || 'Não foi possível enviar agora.');
+      btn.disabled = false; btn.textContent = 'Quero Receber Grátis';
+    } finally { clearTimeout(to); }
+  });
+})();
+
+(function tripShare() {
+  const btn = $('tripShareBtn');
+  if (!btn) return;
+  const text = 'Olha esse app gratuito que monitora o Dólar e Euro ao vivo e avisa no celular a melhor hora de comprar para viagem: ' + SHARE_URL;
+  btn.addEventListener('click', async () => {
+    if (navigator.share) {
+      try { await navigator.share({ text }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; /* outro erro: cai no WhatsApp */ }
+    }
+    window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank', 'noopener');
+  });
+})();
+
+(function adminPanel() {
+  const modal = $('adminModal'), scrim = $('adminScrim');
+  let secret = '', timer = null, totals = null;
+
+  const fmtN = n => (Number(n) || 0).toLocaleString('pt-BR');
+  async function api(path, opts) {
+    const o = opts || {};
+    const r = await fetch(path, {
+      method: o.method || 'GET', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+      body: o.body ? JSON.stringify(o.body) : undefined
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) { const e = new Error(j.error || ('Erro ' + r.status)); e.status = r.status; throw e; }
+    return j;
+  }
+
+  function showLogin() { $('adminLogin').classList.remove('hidden'); $('adminPanel').classList.add('hidden'); }
+  function showPanel() { $('adminLogin').classList.add('hidden'); $('adminPanel').classList.remove('hidden'); }
+
+  function renderLeads(list) {
+    const box = $('admLeadList');
+    box.textContent = '';
+    if (!list.length) { const p = document.createElement('p'); p.className = 'muted px-4 py-4 text-center text-xs'; p.textContent = 'Nenhum lead ainda.'; box.appendChild(p); return; }
+    list.forEach(l => {            // dados vindos de visitantes: sempre textContent, nunca innerHTML
+      const row = document.createElement('div'); row.className = 'admin-lead text-sm';
+      const n = document.createElement('b'); n.textContent = l.nome || '(sem nome)';
+      const c = document.createElement('span'); c.className = 'muted'; c.textContent = ' · ' + l.contato;
+      const m = document.createElement('p'); m.className = 'muted num text-[11px]';
+      m.textContent = (l.interesse || 'Geral') + ' · ' + new Date(l.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      row.append(n, c, m); box.appendChild(row);
+    });
+  }
+
+  async function loadStats() {
+    try {
+      const j = await api('/api/admin/stats');
+      totals = j.totals;
+      $('admDevices').textContent = fmtN(j.totals.devices);
+      $('admTargets').textContent = fmtN(j.totals.targets);
+      $('admTrips').textContent = fmtN(j.totals.trips);
+      $('admLeads').textContent = fmtN(j.totals.leads);
+      renderLeads(j.leads || []);
+      $('admUpdated').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR') + ' · atualiza sozinho a cada 15 s';
+      return true;
+    } catch (e) {
+      if (e.status === 401 || e.status === 429) { stopTimer(); secret = ''; showLogin(); $('adminLoginMsg').textContent = e.message; }
+      else $('admUpdated').textContent = 'Falha ao atualizar: ' + e.message;
+      return false;
+    }
+  }
+  function startTimer() { stopTimer(); timer = setInterval(() => { if (!document.hidden) loadStats(); }, 15000); }
+  function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+  const openAdmin = function () {
+    closeDrawer();
+    modal.classList.add('open'); scrim.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false'); scrim.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    if (secret) { loadStats(); startTimer(); }   // reabriu já autenticado: retoma a atualização ao vivo
+    setTimeout(() => { const f = secret ? $('admTitle') : $('adminSecret'); if (f) f.focus(); }, 60);
+  };
+  function closeAdmin() {
+    if (!modal.classList.contains('open')) return;
+    modal.classList.remove('open'); scrim.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true'); scrim.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    stopTimer();
+  }
+
+  $('adminLogin').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const v = $('adminSecret').value.trim();
+    if (!v) { $('adminLoginMsg').textContent = 'Digite a senha.'; return; }
+    secret = v; $('adminLoginMsg').textContent = ''; $('adminLoginBtn').disabled = true; $('adminLoginBtn').textContent = 'Entrando…';
+    const ok = await loadStats();
+    $('adminLoginBtn').disabled = false; $('adminLoginBtn').textContent = 'Entrar';
+    if (ok) { $('adminSecret').value = ''; showPanel(); startTimer(); }
+  });
+
+  async function fetchAllLeads() { return (await api('/api/admin/stats?limit=5000')).leads || []; }
+
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch (e) { /* fallback abaixo */ }
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta);
+    ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) { /* ignorado */ } ta.remove(); return ok;
+  }
+
+  $('admCopy').addEventListener('click', async () => {
+    const m = $('admLeadMsg'); m.style.color = ''; m.textContent = 'Preparando…';
+    try {
+      const all = await fetchAllLeads();
+      if (!all.length) { m.textContent = 'Nenhum contato para copiar.'; return; }
+      const ok = await copyText(all.map(l => l.contato).join('\n'));
+      m.style.color = ok ? '#C8FF00' : '#FFB020';
+      m.textContent = ok ? all.length + ' contato(s) copiado(s).' : 'Não foi possível copiar. Use o botão CSV.';
+    } catch (e) { m.style.color = '#FFB020'; m.textContent = e.message; }
+  });
+
+  const csvCell = v => {
+    let s = String(v == null ? '' : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;         // evita fórmulas no Excel/Sheets
+    return '"' + s.replace(/"/g, '""') + '"';
+  };
+  $('admCsv').addEventListener('click', async () => {
+    const m = $('admLeadMsg'); m.style.color = ''; m.textContent = 'Gerando CSV…';
+    try {
+      const all = await fetchAllLeads();
+      const rows = [['nome', 'contato', 'interesse', 'criado_em']].concat(all.map(l => [l.nome, l.contato, l.interesse, l.created_at]));
+      const blob = new Blob(['\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'leads_cambio_' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      m.style.color = '#C8FF00'; m.textContent = all.length + ' lead(s) exportado(s).';
+    } catch (e) { m.style.color = '#FFB020'; m.textContent = e.message; }
+  });
+
+  $('admBroadcast').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const title = $('admTitle').value.trim(), body = $('admBody').value.trim(), url = $('admUrl').value.trim();
+    const m = $('admSendMsg'); m.style.color = '#FFB020';
+    if (!title || !body) { m.textContent = 'Preencha título e mensagem.'; return; }
+    if (!confirm('Enviar este push agora para ' + (totals ? fmtN(totals.devices) : 'TODOS os') + ' aparelho(s)? Não dá para desfazer.')) return;
+    const btn = $('admSend'); btn.disabled = true; btn.textContent = 'Enviando…'; m.textContent = '';
+    try {
+      const j = await api('/api/admin/broadcast', { method: 'POST', body: { title, body, url: url || '/index.html' } });
+      m.style.color = '#C8FF00';
+      m.textContent = j.total === 0 ? (j.note || 'Nenhum aparelho inscrito.')
+        : 'Enviado: ' + fmtN(j.delivered) + ' de ' + fmtN(j.total) + ' aparelho(s)' + (j.failed ? ' · ' + fmtN(j.failed) + ' falha(s)' : '') + (j.removed ? ' · ' + fmtN(j.removed) + ' inscrição(ões) expirada(s) removida(s)' : '') + '.';
+      $('admTitle').value = ''; $('admBody').value = ''; $('admUrl').value = '';
+      loadStats();
+    } catch (e) {
+      m.style.color = '#FFB020'; m.textContent = e.message;
+      if (e.status === 401) { secret = ''; stopTimer(); showLogin(); }
+    } finally { btn.disabled = false; btn.textContent = 'Enviar Push Agora para Todos'; }
+  });
+
+  $('adminLogout').addEventListener('click', () => { secret = ''; totals = null; stopTimer(); showLogin(); $('adminLoginMsg').textContent = ''; $('adminSecret').focus(); });
+  $('adminClose').addEventListener('click', closeAdmin);
+  scrim.addEventListener('click', closeAdmin);
+  window.addEventListener('keydown', e => { if (e.key === 'Escape') closeAdmin(); });
+
+  // 5 toques seguidos no logo abrem o painel
+  let taps = 0, lastTap = 0;
+  $('brandTap').addEventListener('click', () => {
+    const now = Date.now();
+    taps = now - lastTap < 900 ? taps + 1 : 1; lastTap = now;
+    if (taps >= 5) { taps = 0; openAdmin(); }
+  });
+  // ou pela URL: /?admin=1 (o parâmetro é removido do endereço ao abrir)
+  try {
+    const qp = new URLSearchParams(location.search);
+    if (qp.get('admin') === '1') {
+      qp.delete('admin');
+      const qs = qp.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+      setTimeout(openAdmin, 300);
+    }
+  } catch (e) { /* ignorado */ }
 })();
 
 /* =========================================================
