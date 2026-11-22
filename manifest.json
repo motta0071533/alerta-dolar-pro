@@ -1,0 +1,95 @@
+{
+  "name": "Alerta Dólar Pro",
+  "short_name": "Dólar Pro",
+  "description": "Painel ao vivo com Score de Oportunidade 0–100, gráfico, RSI e Bollinger para USDT, Euro, Ouro e Bitcoin.",
+  "id": "/",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#101010",
+  "theme_color": "#101010",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": [
+    "finance",
+    "business"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "USDT/BRL · Dólar Digital",
+      "short_name": "Dólar",
+      "url": "/index.html?ativo=USDTBRL&source=shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "EUR/BRL · Euro Digital",
+      "short_name": "Euro",
+      "url": "/index.html?ativo=EURBRL&source=shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "PAXG/BRL · Ouro Digital",
+      "short_name": "Ouro",
+      "url": "/index.html?ativo=PAXGBRL&source=shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "BTC/USDT · Bitcoin em Dólar",
+      "short_name": "Bitcoin",
+      "url": "/index.html?ativo=BTCUSDT&source=shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
+}
