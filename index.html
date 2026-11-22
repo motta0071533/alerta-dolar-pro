@@ -506,6 +506,7 @@
         <p id="priceBinance" class="num skeleton mt-3 text-2xl font-extrabold sm:text-4xl">R$ —</p>
         <p id="priceAlt" class="num muted mt-1 hidden text-xs sm:text-sm"></p>
         <p id="lblBinance" class="muted mt-1 text-xs">USDT/BRL · último preço</p>
+        <p id="maxDia" class="num muted mt-1 text-xs" title="Maior preço de hoje, desde 00:00 (horário de Brasília). Zera todo dia.">Máx. hoje: —</p>
         <span id="spreadBadge" class="spread-badge hidden" role="status" aria-live="off"></span>
       </article>
 
@@ -1784,6 +1785,7 @@ function scheduleSpread() {
 }
 
 function applyLive() {
+  dhTrack();
   const lp = livePrice(ASSET);
   if (lp && state.candles) {
     applyLivePriceToState(lp);
@@ -1796,6 +1798,7 @@ function applyLive() {
     scheduleFull();
   }
   renderPriceAlt();
+  renderDayHigh();
   updateFlowPrices();
   if ($('view-viagem').classList.contains('active')) tripRenderLast();   // compara com a última compra ao vivo
 }
@@ -2106,6 +2109,8 @@ function render() {
   renderPremium();
   updateCalc();
   checkTarget();
+  dhSeedFromCandles();
+  renderDayHigh();
 
   // Avisos de status
   const msgs = [];
@@ -2254,6 +2259,97 @@ async function refreshHigh24() {
     state.high24 = h;
     updateCalc();
   } catch (e) { /* mantém o valor anterior */ }
+}
+
+/* =========================================================
+   MÁXIMA DO DIA (fuso de Brasília) — Dólar, Euro, Ouro, BTC (US$ e R$)
+   Fonte principal: servidor (GET /api/maxima-dia, guardada no Supabase, resiste a reinício do Render).
+   Em tempo real: o painel também sobe a máxima com o preço ao vivo do WebSocket.
+   Reserva: localStorage (só vale para o dia atual) caso o servidor esteja indisponível.
+   ========================================================= */
+const DAYHIGH_REFRESH_MS = 30000;
+const DH_LS_KEY = 'adp_dayhigh';
+const dhFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+const brtDay = () => dhFmt.format(new Date());                       // YYYY-MM-DD em Brasília
+const DH = { dia: brtDay(), server: {}, local: {}, saved: 0 };       // server/local: { USDTBRL, EURBRL, PAXGBRL, BTCUSDT, BTCBRL }
+try {
+  const j = JSON.parse(localStorage.getItem(DH_LS_KEY) || 'null');
+  if (j && j.dia === DH.dia && j.v && typeof j.v === 'object') DH.local = j.v;   // dia diferente = descarta
+} catch (e) { /* storage indisponível */ }
+
+const dhKey = a => a.storeKey || a.key;                              // BTC em reais = BTCBRL
+const dhAssets = () => [ASSETS.USDTBRL, ASSETS.EURBRL, ASSETS.PAXGBRL, ASSETS.BTCUSDT, BTC_BRL];
+
+function dhSave(force) {
+  if (!force && Date.now() - DH.saved < 5000) return;
+  DH.saved = Date.now();
+  try { localStorage.setItem(DH_LS_KEY, JSON.stringify({ dia: DH.dia, v: DH.local })); } catch (e) { /* ignorado */ }
+}
+
+// virou o dia em Brasília? zera tudo e busca a máxima do novo dia
+function dhRoll() {
+  const d = brtDay();
+  if (d === DH.dia) return;
+  DH.dia = d; DH.server = {}; DH.local = {};
+  dhSave(true); renderDayHigh(); refreshDayHigh();
+}
+
+// sobe a máxima com o preço ao vivo de todos os ativos (o WebSocket entrega os 5 pares)
+function dhTrack() {
+  dhRoll();
+  let changed = false;
+  for (const a of dhAssets()) {
+    const lp = liveCombo(a.live);
+    if (!lp) continue;
+    const k = dhKey(a);
+    if (lp.p > (DH.local[k] || 0)) { DH.local[k] = lp.p; changed = true; }
+  }
+  if (changed) dhSave();
+}
+
+// reserva sem servidor: máximas dos candles de 15 m do ativo atual que são de hoje
+function dhSeedFromCandles() {
+  const cs = state.candles;
+  if (!cs || !cs.length) return;
+  const start = Date.parse(DH.dia + 'T00:00:00-03:00');
+  const k = dhKey(ASSET);
+  let hi = DH.local[k] || 0;
+  for (const c of cs) if (c.t >= start && c.h > hi) hi = c.h;
+  if (hi > (DH.local[k] || 0)) { DH.local[k] = hi; dhSave(); }
+}
+
+function dhValue(a) {
+  const k = dhKey(a), s = DH.server[k], l = DH.local[k];
+  const m = Math.max(isFinite(s) ? s : 0, isFinite(l) ? l : 0);
+  return m > 0 ? m : null;
+}
+
+function renderDayHigh() {
+  const el = $('maxDia');
+  if (!el) return;
+  const v = dhValue(ASSET);
+  const txt = v ? `Máx. hoje: ${brl(v)}` : 'Máx. hoje: —';
+  if (el.textContent !== txt) el.textContent = txt;
+  const lp = livePrice(ASSET);
+  const px = lp ? lp.p : (state.candles && state.candles.length ? state.candles[state.candles.length - 1].c : null);
+  const top = !!(v && px && px >= v);                                   // preço agora é a máxima do dia
+  el.style.color = top ? '#C8FF00' : '';
+}
+
+let dhBusy = false;
+async function refreshDayHigh() {
+  if (dhBusy) return;
+  dhBusy = true;
+  try {
+    const j = await fetchJSON('/api/maxima-dia', 6000);
+    if (j && j.ok && j.dia === DH.dia && j.maximas) {                   // só aceita dados do mesmo dia (Brasília)
+      const s = {};
+      for (const [k, v] of Object.entries(j.maximas)) { const n = +v; if (isFinite(n) && n > 0) s[k] = n; }
+      DH.server = s;
+      renderDayHigh();
+    }
+  } catch (e) { /* mantém o último valor / reserva local */ }
+  finally { dhBusy = false; }
 }
 
 function tickClock() {
@@ -3055,7 +3151,7 @@ function switchAsset(next) {
   // limpa o estado do ativo anterior
   state.candles = null; state.k1h = null; state.sec = null; state.high24 = null; state.binanceError = false;
   lastUpdate = 0; prevActive = null; inFlight = false; lastRestAt = 0;
-  resetChart(); resetView(); applyAssetLabels();
+  resetChart(); resetView(); applyAssetLabels(); renderDayHigh();
   // alvo de preço próprio de cada ativo
   targetPrice = loadTarget(); targetHit = null;
   $('targetInput').value = targetPrice ? fmtTarget(targetPrice) : '';
@@ -4313,11 +4409,14 @@ initChart();
 refresh();
 refreshSecondary();
 refreshHigh24();
+refreshDayHigh();
+renderDayHigh();
 refreshCommercial();
 updateMarketStrip();
 setInterval(refresh, REFRESH_MS);
 setInterval(refreshSecondary, SECONDARY_REFRESH_MS);
 setInterval(refreshHigh24, HIGH24_REFRESH_MS);
+setInterval(() => { if (!document.hidden) { dhRoll(); refreshDayHigh(); } }, DAYHIGH_REFRESH_MS);
 setInterval(refreshCommercial, COMMERCIAL_REFRESH_MS);
 setInterval(updateMarketStrip, 1000);
 setInterval(tickClock, 1000);
@@ -4331,7 +4430,7 @@ initPush();
 checkTarget();
 refreshHistory();
 setInterval(refreshHistory, HIST_REFRESH_MS);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshHistory(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshHistory(); dhRoll(); refreshDayHigh(); } });
 </script>
 </body>
 </html>

@@ -9,6 +9,7 @@
 //   POST            /api/leads                       { nome?, contato, interesse? }          (público)
 //   GET             /api/admin/stats                 header x-admin-secret (ou ?secret=)      (CRON_SECRET)
 //   POST            /api/admin/broadcast             { secret?, title, body, url? }           (CRON_SECRET)
+//   GET             /api/maxima-dia                  máxima do dia (Brasília) dos 5 preços do painel  (público, somente leitura)
 //   GET             /healthz
 //   estáticos       index.html, manifest.json, sw.js, icons/ ...
 //
@@ -23,6 +24,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const subscribe = require('./netlify/functions/subscribe.js');
 const checkDollar = require('./netlify/functions/check-dollar.js');
+const dailyHigh = require('./daily-high.js');
 
 const app = express();
 app.disable('x-powered-by');
@@ -139,6 +141,17 @@ function adapt(handler) {
 
 app.all('/api/subscribe', rawBody, adapt(subscribe.handler));
 app.all('/api/check-dollar', rawBody, adapt(checkDollar.handler));
+
+/* ------------------------- Máxima do dia (público, leitura) ------------------------- */
+app.get('/api/maxima-dia', async (req, res) => {
+  noStore(res);
+  try {
+    await dailyHigh.ensureFresh();
+    res.json({ ok: true, ...dailyHigh.snapshot() });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: errMsg(err) });
+  }
+});
 
 /* ------------------------------ Leads (público) ------------------------------ */
 const jsonBody = express.json({ limit: '8kb' });
@@ -312,7 +325,7 @@ app.use((err, req, res, next) => {
 
 /* ------------------------------ Arquivos estáticos ------------------------------ */
 // Bloqueia o que NÃO pode ser público: código do servidor, funções, package*.json, node_modules, dotfiles etc.
-const BLOCKED = /^\/(netlify(\/|\.toml$)|node_modules(\/|$)|server\.js$|package(-lock)?\.json$|render\.yaml$|[^/]*\.sql$|\.)/i;
+const BLOCKED = /^\/(netlify(\/|\.toml$)|node_modules(\/|$)|server\.js$|daily-high\.js$|package(-lock)?\.json$|render\.yaml$|[^/]*\.sql$|\.)/i;
 app.use((req, res, next) => {
   let p = req.path;
   try { p = decodeURIComponent(p); } catch (e) { return res.status(400).end(); }
@@ -334,4 +347,7 @@ app.use(express.static(__dirname, {
 app.use((req, res) => res.status(404).type('text').send('Não encontrado.'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Alerta Dólar Pro rodando na porta ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Alerta Dólar Pro rodando na porta ${PORT}`);
+  dailyHigh.start(getSupabase);   // rastreia a máxima do dia (Brasília) e grava no Supabase
+});
