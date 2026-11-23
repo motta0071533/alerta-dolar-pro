@@ -21,9 +21,18 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://api.binance.com" crossorigin />
+  <link rel="dns-prefetch" href="https://data-api.binance.vision" />
+  <link rel="dns-prefetch" href="https://stream.binance.com" />
+  <!-- Fonte Inter com font-display: swap (parâmetro display=swap da URL). O CSS não bloqueia a primeira pintura:
+       o texto aparece na hora com a fonte do sistema e troca para a Inter quando ela chega (mesmas cores e layout). -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" /></noscript>
+  <!-- Tailwind (CDN) precisa rodar antes da pintura: com defer/async a tela apareceria sem estilo (FOUC). Mantido síncrono. -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- Biblioteca do gráfico: defer = baixa em paralelo e executa só depois do HTML (o gráfico está abaixo da primeira dobra) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -4405,32 +4414,52 @@ if (ASSET.key !== 'USDTBRL') resetView(); // ajusta placeholders de moeda quando
 targetPrice = loadTarget(); targetHit = null;   // alvo salvo do ativo com que o painel abre
 $('targetInput').value = targetPrice ? fmtTarget(targetPrice) : '';
 initNav();
-initChart();
-refresh();
-refreshSecondary();
-refreshHigh24();
-refreshDayHigh();
 renderDayHigh();
-refreshCommercial();
 updateMarketStrip();
-setInterval(refresh, REFRESH_MS);
-setInterval(refreshSecondary, SECONDARY_REFRESH_MS);
-setInterval(refreshHigh24, HIGH24_REFRESH_MS);
-setInterval(() => { if (!document.hidden) { dhRoll(); refreshDayHigh(); } }, DAYHIGH_REFRESH_MS);
-setInterval(refreshCommercial, COMMERCIAL_REFRESH_MS);
 setInterval(updateMarketStrip, 1000);
 setInterval(tickClock, 1000);
-wsConnect();   // preço em tempo real (WebSocket da Binance)
 
 { // aviso de instalação só aparece fora do app instalado
   const installed = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
   if (installed) $('installWarn').classList.add('hidden');
 }
-initPush();
-checkTarget();
-refreshHistory();
-setInterval(refreshHistory, HIST_REFRESH_MS);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshHistory(); dhRoll(); refreshDayHigh(); } });
+
+/* Gráfico: a biblioteca carrega com defer, então só existe depois do HTML. Os scripts com defer rodam ANTES do
+   DOMContentLoaded; se os candles chegarem antes do gráfico ficar pronto, desenhamos o que já está em memória. */
+function bootChart() {
+  initChart();   // sem a biblioteca (falha de rede), mostra a mensagem de erro do próprio initChart
+  if (chart && state.candles) { try { renderChart(state.candles); } catch (e) { console.warn('[Gráfico]', e); } }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootChart, { once: true });
+else bootChart();
+
+/* Chamadas de API (Binance, Mercado Bitcoin, /api/*), WebSocket e Push só começam DEPOIS que a primeira dobra
+   foi pintada (LCP). Dois requestAnimationFrame = o navegador já desenhou o primeiro quadro. */
+let dataStarted = false;
+function startData() {
+  if (dataStarted) return;
+  dataStarted = true;
+  refresh();
+  refreshSecondary();
+  refreshHigh24();
+  refreshDayHigh();
+  refreshCommercial();
+  setInterval(refresh, REFRESH_MS);
+  setInterval(refreshSecondary, SECONDARY_REFRESH_MS);
+  setInterval(refreshHigh24, HIGH24_REFRESH_MS);
+  setInterval(() => { if (!document.hidden) { dhRoll(); refreshDayHigh(); } }, DAYHIGH_REFRESH_MS);
+  setInterval(refreshCommercial, COMMERCIAL_REFRESH_MS);
+  wsConnect();   // preço em tempo real (WebSocket da Binance)
+  initPush();
+  checkTarget();
+  refreshHistory();
+  setInterval(refreshHistory, HIST_REFRESH_MS);
+}
+if (document.hidden) startData();   // aba em segundo plano: não há o que pintar (e requestAnimationFrame não dispara)
+else requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(startData, 0)));
+setTimeout(startData, 1500);        // rede de segurança: nunca deixa o painel sem dados
+
+document.addEventListener('visibilitychange', () => { if (dataStarted && !document.hidden) { refreshHistory(); dhRoll(); refreshDayHigh(); } });
 </script>
 </body>
 </html>
