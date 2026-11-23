@@ -12,6 +12,9 @@
 // DELETE /api/subscribe  { endpoint }                       -> remove a inscrição (usuário desativou)
 // GET    /api/subscribe                                     -> devolve a VAPID_PUBLIC_KEY (o painel usa se não houver chave fixa no HTML)
 //
+// Login (opcional): se a requisição trouxer `Authorization: Bearer <access_token do Supabase Auth>`, o token é validado no servidor
+// e o aparelho passa a ficar vinculado ao usuário (coluna push_subscriptions.user_id). Token ausente/inválido = aparelho anônimo, como antes.
+//
 // Variáveis de ambiente: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY
 
 const { createClient } = require('@supabase/supabase-js');
@@ -86,6 +89,17 @@ exports.handler = async (event) => {
   });
 
   try {
+    // usuário logado (opcional): o id vem do token validado pelo Supabase, nunca do corpo da requisição
+    let userId = null;
+    const authHeader = (event.headers && (event.headers.authorization || event.headers.Authorization)) || '';
+    const bearer = /^Bearer\s+(\S+)$/i.exec(authHeader);
+    if (bearer && bearer[1].length < 4000) {
+      try {
+        const { data: u, error: uErr } = await supabase.auth.getUser(bearer[1]);
+        if (!uErr && u && u.user) userId = u.user.id;
+      } catch (e) { /* token inválido: segue como anônimo */ }
+    }
+
     if (method === 'DELETE') {
       if (!validEndpoint(body.endpoint)) return json(400, { error: 'Endpoint inválido.' });
       const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', body.endpoint);
@@ -167,6 +181,7 @@ exports.handler = async (event) => {
 
     // tudo que o corpo quer alterar na linha do aparelho
     const extraCols = { ...targetCols, ...prefCols, ...viagemCols };
+    if (userId) extraCols.user_id = userId;   // vincula o aparelho (e seus alertas) à conta
     const hasExtra = hasTarget || hasPrefs || hasViagem;
 
     const sub = body.subscription;

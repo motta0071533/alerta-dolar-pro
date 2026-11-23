@@ -7,6 +7,19 @@
   <meta name="description" content="Painel ao vivo com Score de Oportunidade, RSI, Bandas de Bollinger e alertas push gratuitos para o momento de compra do dólar (USDT/BRL). Acompanhe também EUR/BRL, PAXG/BRL (ouro) e BTC/USDT (Bitcoin em dólar)." />
   <meta name="theme-color" content="#101010" />
   <meta name="color-scheme" content="dark" />
+  <script>
+    /* Hero de entrada: aparece só para quem não tem sessão, não escolheu "continuar sem login" e não está voltando do OAuth */
+    (function () {
+      try {
+        var q = location.search, h = location.hash;
+        var oauth = /[?&](code|error|admin)=/.test(q) || /access_token=|error_description=/.test(h);
+        var logged = false;
+        for (var i = 0; i < localStorage.length; i++) { if (/^sb-.+-auth-token$/.test(localStorage.key(i))) { logged = true; break; } }
+        var guest = localStorage.getItem('adp_guest') === '1';
+        if (!logged && !guest && !oauth) document.documentElement.classList.add('hero-on');
+      } catch (e) { /* sem storage: abre direto o painel */ }
+    })();
+  </script>
 
   <!-- PWA: instalável no Android (Chrome) e no iPhone (Safari › Compartilhar › Adicionar à Tela de Início) -->
   <link rel="manifest" href="/manifest.json" />
@@ -33,6 +46,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Biblioteca do gráfico: defer = baixa em paralelo e executa só depois do HTML (o gráfico está abaixo da primeira dobra) -->
   <script defer src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- Login com Google (Supabase Auth): usa só a ANON KEY pública, nunca a service_role -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -388,9 +403,213 @@
     .admin-lead b { font-weight: 800; word-break: break-word; }
     .admin-lead span { word-break: break-all; }
     @media (prefers-reduced-motion: reduce) { .trip-fill { transition: none; } }
+
+    /* =====================================================================
+       GLASSMORPHISM (estilo expo-glass-effect / Liquid Glass)
+       Translúcido + blur(16px) + borda fina branca + brilho interno. Cores originais mantidas.
+       ===================================================================== */
+    :root {
+      --glass-bg: rgba(255,255,255,0.07);
+      --glass-bg-hover: rgba(255,255,255,0.13);
+      --glass-border: rgba(255,255,255,0.14);
+      --glass-border-hover: rgba(255,255,255,0.30);
+      --glass-filter: blur(16px) saturate(160%);
+      --glass-shadow: inset 0 1px 0 rgba(255,255,255,0.20), inset 0 0 20px rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.35);
+      --glass-shadow-soft: inset 0 1px 0 rgba(255,255,255,0.12);
+      --glass-glow: 0 0 26px rgba(200,255,0,0.14);
+    }
+    /* luz ambiente atrás do vidro: sem nada atrás, o desfoque não aparece */
+    body {
+      background:
+        radial-gradient(60% 38% at 88% -4%, rgba(200,255,0,0.11), transparent 70%),
+        radial-gradient(50% 36% at -6% 104%, rgba(200,255,0,0.07), transparent 70%),
+        #101010;
+      background-attachment: fixed;
+    }
+
+    /* Botões, abas, seletores, campos e pílulas */
+    .btn-ghost, .icon-btn, .live-pill, .tab, .seg, .market-strip, .help-btn, .guide-close, .btn-share, .glass-btn, .user-btn, .field {
+      background: var(--glass-bg);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+    }
+    .field, .help-btn, .live-pill, .seg { box-shadow: var(--glass-shadow-soft); }
+    .btn-ghost:hover, .icon-btn:hover, .tab:hover, .guide-close:hover, .glass-btn:hover, .user-btn:hover, .help-btn:hover {
+      background: var(--glass-bg-hover);
+      border-color: var(--glass-border-hover);
+      box-shadow: var(--glass-shadow), var(--glass-glow);
+    }
+    .help-btn:hover { box-shadow: var(--glass-shadow-soft), var(--glass-glow); }
+    .btn-share { background: rgba(200,255,0,0.08); border-color: rgba(200,255,0,0.5); }
+    .btn-share:hover { background: rgba(200,255,0,0.15); box-shadow: var(--glass-shadow), var(--glass-glow); }
+    .btn-ghost, .glass-btn, .icon-btn, .tab { transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease; }
+    .btn-ghost:active, .glass-btn:active, .icon-btn:active { transform: scale(0.97); }
+
+    /* Aba selecionada e seletor de moeda: vidro lima */
+    .tab[aria-selected="true"], .tab[aria-selected="true"]:hover {
+      background: linear-gradient(180deg, rgba(214,255,60,0.94), rgba(200,255,0,0.80));
+      border-color: rgba(255,255,255,0.40);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 6px 20px rgba(200,255,0,0.18);
+    }
+    .seg-btn[aria-checked="true"] {
+      background: linear-gradient(180deg, rgba(214,255,60,0.94), rgba(200,255,0,0.80));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+    }
+
+    /* Botões principais (lima): vidro lima com brilho */
+    .btn-lime, .guide-cta {
+      background: linear-gradient(180deg, rgba(214,255,60,0.94), rgba(200,255,0,0.78));
+      border: 1px solid rgba(255,255,255,0.38);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -8px 16px rgba(120,160,0,0.22), 0 8px 26px rgba(200,255,0,0.16);
+      transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .btn-lime:hover, .guide-cta:hover {
+      filter: none;
+      background: linear-gradient(180deg, rgba(224,255,90,0.98), rgba(210,255,30,0.86));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -8px 16px rgba(120,160,0,0.18), 0 10px 32px rgba(200,255,0,0.28);
+    }
+    .btn-lime:disabled, .btn-lime:disabled:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.35); }
+    .btn-lime.is-on, .btn-lime.is-on:disabled {
+      background: rgba(200,255,0,0.08); border: 1px solid rgba(200,255,0,0.7);
+      box-shadow: var(--glass-shadow-soft), var(--glass-glow);
+    }
+    .switch { background: var(--glass-bg); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--glass-shadow-soft); }
+    .switch[aria-checked="true"] { box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 0 14px rgba(200,255,0,0.25); }
+
+    /* Barras superiores/inferiores */
+    .app-header {
+      background: rgba(16,16,16,0.55);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border-bottom: 1px solid var(--glass-border);
+      box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05), 0 8px 30px rgba(0,0,0,0.35);
+    }
+    .bottom-nav {
+      background: rgba(16,16,16,0.55);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border-top: 1px solid var(--glass-border);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 -8px 30px rgba(0,0,0,0.35);
+    }
+
+    /* Barras de progresso (Score, RSI, ágio, fluxo, meta da viagem) */
+    .track, .gauge, .tug, .trip-bar {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.10);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.06);
+    }
+    .tug { background: rgba(16,16,16,0.55); }
+    .fill, .trip-fill, .gauge-fill, .tug-buy, .tug-sell { box-shadow: inset 0 1px 0 rgba(255,255,255,0.35); }
+
+    /* Menus: gaveta, modais e menu do usuário */
+    .drawer {
+      background: rgba(20,20,20,0.68);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border-right: 1px solid var(--glass-border);
+      box-shadow: inset -1px 0 0 rgba(255,255,255,0.06), 20px 0 60px rgba(0,0,0,0.5);
+    }
+    .drawer-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+    .drawer-item:hover { background: var(--glass-bg-hover); border-color: var(--glass-border-hover); }
+    .drawer-promo { background: rgba(200,255,0,0.06); border-color: rgba(200,255,0,0.35); }
+    .modal, .modal.admin-modal {
+      background: rgba(22,22,22,0.70);
+      -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--glass-border);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(200,255,0,0.10), 0 24px 60px rgba(0,0,0,0.6);
+    }
+    .modal.admin-modal { border-color: rgba(200,255,0,0.5); }
+    .scrim { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+
+    /* Menu do usuário (avatar + nome + Sair) */
+    #userArea [hidden] { display: none !important; }
+    .user-btn { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 5px; border-radius: 999px; color: #FFFFFF; font-weight: 700; font-size: 13px; max-width: 180px; }
+    .user-btn-name { display: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (min-width: 520px) { .user-btn { padding: 0 14px 0 5px; } .user-btn-name { display: inline; } }
+    .user-avatar, .user-initial { width: 34px; height: 34px; flex: none; border-radius: 999px; border: 1px solid rgba(200,255,0,0.55); }
+    .user-avatar { object-fit: cover; }
+    .user-initial { display: flex; align-items: center; justify-content: center; background: rgba(200,255,0,0.16); color: #C8FF00; font-weight: 800; }
+    .user-menu {
+      position: absolute; right: 0; top: calc(100% + 10px); z-index: 35; width: min(78vw, 260px); padding: 14px; border-radius: 16px;
+      background: rgba(20,20,20,0.72); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);
+    }
+    .glass-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; }
+
+    /* ===== Hero Section de entrada ===== */
+    #hero {
+      display: none; position: fixed; inset: 0; z-index: 100; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: calc(env(safe-area-inset-top) + 16px) 0 calc(env(safe-area-inset-bottom) + 16px);
+      background: radial-gradient(70% 45% at 85% 0%, rgba(200,255,0,0.14), transparent 70%), radial-gradient(60% 40% at 0% 100%, rgba(200,255,0,0.08), transparent 70%), #101010;
+    }
+    html.hero-on #hero { display: flex; }
+    html.hero-on body { overflow: hidden; }
+    .hero-blob { position: absolute; border-radius: 999px; filter: blur(60px); pointer-events: none; opacity: .55; }
+    .hero-blob-a { width: 280px; height: 280px; right: -80px; top: 8%; background: rgba(200,255,0,0.22); animation: heroFloat 9s ease-in-out infinite; }
+    .hero-blob-b { width: 240px; height: 240px; left: -90px; bottom: 6%; background: rgba(200,255,0,0.12); animation: heroFloat 11s ease-in-out infinite reverse; }
+    @keyframes heroFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-22px); } }
+    .hero-inner { position: relative; margin: auto; width: 100%; max-width: 560px; padding: 28px 20px; text-align: center; }
+    .hero-logo { width: 76px; height: 76px; margin: 0 auto; border-radius: 22px; overflow: hidden; box-shadow: var(--glass-shadow), var(--glass-glow); }
+    .hero-eyebrow { display: inline-block; margin-top: 18px; padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #C8FF00; border: 1px solid rgba(200,255,0,0.4); background: rgba(200,255,0,0.07); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+    .hero-title { margin-top: 16px; font-size: clamp(2.1rem, 9vw, 3.4rem); font-weight: 800; line-height: 1.04; letter-spacing: -0.035em; }
+    .hero-title em { font-style: normal; color: #C8FF00; }
+    .hero-sub { margin: 16px auto 0; max-width: 460px; font-size: 15px; line-height: 1.55; color: rgba(255,255,255,0.7); }
+    .hero-chips { margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .hero-chip { padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: -0.01em; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow-soft); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+    .hero-feats { margin-top: 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .hero-feat { padding: 12px 8px; border-radius: 16px; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow-soft); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+    .hero-feat b { display: block; font-size: 15px; font-weight: 800; color: #C8FF00; }
+    .hero-feat span { display: block; margin-top: 3px; font-size: 11px; line-height: 1.35; color: rgba(255,255,255,0.65); }
+    .hero-google { width: 100%; padding: 17px 20px; font-size: 16px; font-weight: 800; border-radius: 16px; background: rgba(255,255,255,0.12); border-color: rgba(200,255,0,0.55); box-shadow: var(--glass-shadow), 0 0 32px rgba(200,255,0,0.18); }
+    .hero-google:hover { background: rgba(255,255,255,0.20); border-color: rgba(200,255,0,0.85); box-shadow: var(--glass-shadow), 0 0 40px rgba(200,255,0,0.30); }
+    .hero-google:disabled { opacity: .6; cursor: progress; }
+    .hero-guest { width: 100%; margin-top: 10px; padding: 13px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.72); border-radius: 14px; border: 1px solid transparent; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+    .hero-guest:hover { color: #FFFFFF; background: var(--glass-bg); border-color: var(--glass-border); }
+    .hero-guest:focus-visible, .hero-google:focus-visible, .glass-btn:focus-visible, .user-btn:focus-visible { outline: 2px solid #C8FF00; outline-offset: 2px; }
+    .hero-note { margin-top: 14px; font-size: 11px; line-height: 1.5; color: rgba(255,255,255,0.5); }
+
+    @media (prefers-reduced-motion: reduce) { .hero-blob { animation: none; } }
+    /* sem vidro quando o sistema pede menos transparência */
+    @media (prefers-reduced-transparency: reduce) {
+      .btn-ghost, .icon-btn, .live-pill, .tab, .seg, .market-strip, .help-btn, .guide-close, .btn-share, .glass-btn, .user-btn, .field,
+      .app-header, .bottom-nav, .drawer, .modal, .modal.admin-modal, .user-menu, .hero-chip, .hero-feat { -webkit-backdrop-filter: none; backdrop-filter: none; }
+      .app-header, .bottom-nav, .drawer, .modal, .modal.admin-modal, .user-menu { background: #161616; }
+    }
   </style>
 </head>
 <body class="min-h-screen">
+  <!-- Hero Section de entrada (Login com Google) -->
+  <section id="hero" aria-labelledby="heroTitle">
+    <div class="hero-blob hero-blob-a" aria-hidden="true"></div>
+    <div class="hero-blob hero-blob-b" aria-hidden="true"></div>
+    <div class="hero-inner">
+      <div class="hero-logo" aria-hidden="true">
+        <svg width="76" height="76" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#101010"/><g transform="translate(15.36 15.36) scale(0.94)" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="96,300 190,222 250,240 410,112" stroke="#C8FF00" stroke-width="26"/><polyline points="338,112 410,112 410,184" stroke="#FFFFFF" stroke-width="26"/><circle cx="256" cy="360" r="86" fill="#C8FF00" stroke="none"/><path d="M284 330 C284 302 224 302 224 338 C224 368 288 364 288 392 C288 422 228 422 228 394" stroke="#101010" stroke-width="16"/><line x1="256" y1="294" x2="256" y2="426" stroke="#101010" stroke-width="12"/></g></svg>
+      </div>
+      <span class="hero-eyebrow">ALERTA DÓLAR PRO</span>
+      <h2 id="heroTitle" class="hero-title">Compre na <em>hora certa</em>, não na hora do susto.</h2>
+      <p class="hero-sub">Acompanhe Dólar, Euro, Ouro e Bitcoin em tempo real. Um Score inteligente de 0 a 100 mostra quando o preço está descontado e o app avisa no seu celular assim que surgir a oportunidade.</p>
+      <div class="hero-chips" aria-label="Ativos monitorados">
+        <span class="hero-chip">Dólar</span><span class="hero-chip">Euro</span><span class="hero-chip">Ouro</span><span class="hero-chip">Bitcoin</span>
+      </div>
+      <div class="hero-feats">
+        <div class="hero-feat"><b>0–100</b><span>Score inteligente de oportunidade</span></div>
+        <div class="hero-feat"><b>24/7</b><span>Alertas no celular, mesmo com o app fechado</span></div>
+        <div class="hero-feat"><b>Ao vivo</b><span>Cotações em tempo real</span></div>
+      </div>
+      <div class="mt-7">
+        <button id="heroGoogle" type="button" class="glass-btn hero-google">
+          <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          <span id="heroGoogleLabel">Entrar com Google</span>
+        </button>
+        <button id="heroGuest" type="button" class="hero-guest">Continuar sem login · Explorar cotações agora</button>
+        <p id="heroMsg" class="mt-2 text-xs" style="color:#FFB020" role="status" aria-live="polite"></p>
+      </div>
+      <p class="hero-note">Entrando, seu nome e foto aparecem no app e seus alertas ficam salvos na sua conta. Ferramenta informativa, sem recomendação de investimento.</p>
+    </div>
+  </section>
   <!-- Header -->
   <header class="app-header">
     <div class="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
@@ -412,6 +631,21 @@
       <div class="live-pill" role="status">
         <span id="liveDot" class="pulse-dot inline-block h-2 w-2 rounded-full bg-lime"></span>
         <span id="liveText" class="num">Conectando…</span>
+      </div>
+      <div id="userArea" class="relative flex-none">
+        <button id="userLogin" type="button" class="glass-btn px-4 py-2.5 text-xs" hidden>Entrar</button>
+        <div id="userBox" hidden>
+          <button id="userBtn" type="button" class="user-btn" aria-haspopup="true" aria-expanded="false" aria-controls="userMenu" aria-label="Menu da conta">
+            <img id="userAvatar" class="user-avatar" alt="" referrerpolicy="no-referrer" hidden />
+            <span id="userInitial" class="user-initial" aria-hidden="true">?</span>
+            <span id="userName" class="user-btn-name"></span>
+          </button>
+          <div id="userMenu" class="user-menu" role="menu" hidden>
+            <p id="userMenuName" class="truncate text-sm font-extrabold"></p>
+            <p id="userMenuEmail" class="muted truncate text-xs"></p>
+            <button id="userLogout" type="button" role="menuitem" class="glass-btn mt-3 w-full px-4 py-2.5 text-sm">Sair</button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -2471,7 +2705,9 @@ async function subscribeWithRetry(reg, opts) {
 async function apiSubscribe(method, body) {
   let res;
   try {
-    res = await fetch('/api/subscribe', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const headers = { 'Content-Type': 'application/json' };
+    if (window.ADP_TOKEN) headers.Authorization = 'Bearer ' + window.ADP_TOKEN;   // usuário logado: vincula o aparelho à conta
+    res = await fetch('/api/subscribe', { method, headers, body: JSON.stringify(body) });
   } catch (e) { throw new Error('sem conexão com o servidor'); }
   let j = null;
   try { j = await res.json(); } catch (e) { /* corpo vazio */ }
@@ -4460,6 +4696,162 @@ else requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(startDat
 setTimeout(startData, 1500);        // rede de segurança: nunca deixa o painel sem dados
 
 document.addEventListener('visibilitychange', () => { if (dataStarted && !document.hidden) { refreshHistory(); dhRoll(); refreshDayHigh(); } });
+</script>
+<script>
+/* =========================================================
+   LOGIN COM GOOGLE (Supabase Auth) + HERO + PERFIL
+   Só a chave ANON (pública) vai para o navegador. A service_role fica apenas no servidor.
+   ========================================================= */
+(function authModule() {
+  // >>> Cole aqui a "anon public" key: Supabase > Project Settings > API <<<
+  const SUPABASE_URL = 'https://sdtpapapzowtmbakfvfv.supabase.co';
+  const SUPABASE_ANON_KEY = 'COLE_AQUI_SUA_ANON_KEY';
+
+  const $ = id => document.getElementById(id);
+  const html = document.documentElement;
+  const GUEST_KEY = 'adp_guest';
+  const configured = !!SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.indexOf('COLE_') !== 0;
+  let sb = null, user = null, profileSavedFor = null, linkedFor = null;
+  const ls = {
+    get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignorado */ } },
+    del: k => { try { localStorage.removeItem(k); } catch (e) { /* ignorado */ } }
+  };
+  window.ADP_TOKEN = null;
+
+  function setHero(on) {
+    html.classList.toggle('hero-on', on);
+    document.querySelectorAll('body > :not(#hero):not(script)').forEach(el => { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); });
+    if (on) setTimeout(() => { const b = $('heroGoogle'); if (b) b.focus({ preventScroll: true }); }, 60);
+  }
+
+  function resetGoogleBtn() {
+    $('heroGoogle').disabled = false;
+    $('heroGoogleLabel').textContent = 'Entrar com Google';
+  }
+
+  async function loginGoogle() {
+    const msg = $('heroMsg');
+    msg.textContent = '';
+    if (!sb) {
+      msg.textContent = configured
+        ? 'Não foi possível carregar o login agora. Verifique sua conexão e recarregue a página.'
+        : 'Login ainda não configurado: defina SUPABASE_ANON_KEY no index.html.';
+      return;
+    }
+    $('heroGoogle').disabled = true;
+    $('heroGoogleLabel').textContent = 'Abrindo o Google…';
+    try {
+      const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+      if (error) throw error;
+    } catch (e) {
+      msg.textContent = 'Não foi possível iniciar o login com Google (' + (e.message || e) + ').';
+      resetGoogleBtn();
+    }
+  }
+
+  function renderUser() {
+    const login = $('userLogin'), box = $('userBox');
+    closeMenu();
+    if (!user) { login.hidden = false; box.hidden = true; return; }
+    const m = user.user_metadata || {};
+    const name = m.full_name || m.name || (user.email ? user.email.split('@')[0] : 'Minha conta');
+    const avatar = m.avatar_url || m.picture || '';
+    login.hidden = true; box.hidden = false;
+    $('userName').textContent = name;
+    $('userMenuName').textContent = name;
+    $('userMenuEmail').textContent = user.email || '';
+    $('userInitial').textContent = (name.trim()[0] || '?').toUpperCase();
+    const img = $('userAvatar');
+    img.onerror = () => { img.hidden = true; $('userInitial').hidden = false; };
+    if (avatar && /^https:\/\//.test(avatar)) { img.src = avatar; img.hidden = false; $('userInitial').hidden = true; }
+    else { img.hidden = true; $('userInitial').hidden = false; }
+  }
+
+  function closeMenu() { const m = $('userMenu'); if (m) { m.hidden = true; $('userBtn').setAttribute('aria-expanded', 'false'); } }
+  function toggleMenu() {
+    const m = $('userMenu'), open = m.hidden;
+    m.hidden = !open;
+    $('userBtn').setAttribute('aria-expanded', String(open));
+  }
+
+  // grava/atualiza o perfil (RLS: cada usuário só mexe na própria linha)
+  async function saveProfile() {
+    if (!sb || !user || profileSavedFor === user.id) return;
+    profileSavedFor = user.id;
+    const m = user.user_metadata || {};
+    const { error } = await sb.from('profiles').upsert({
+      id: user.id,
+      email: user.email || null,
+      nome: m.full_name || m.name || null,
+      avatar_url: m.avatar_url || m.picture || null,
+      ultimo_acesso: new Date().toISOString()
+    }, { onConflict: 'id' });
+    if (error) { profileSavedFor = null; console.warn('[perfil]', error.message); }
+  }
+
+  // vincula o aparelho já inscrito no push à conta (o servidor valida o token e grava o user_id)
+  async function linkPush() {
+    if (!user || linkedFor === user.id) return;
+    try {
+      for (let i = 0; i < 40 && !(typeof pushState !== 'undefined' && pushState === 'active'); i++) {
+        if (i === 39) return;                       // push não ativado: o vínculo acontece quando ele for ativado
+        await new Promise(r => setTimeout(r, 500));
+      }
+      const sub = await (await ensureSW()).pushManager.getSubscription();
+      if (!sub) return;
+      await apiSubscribe('POST', { subscription: sub.toJSON() });
+      linkedFor = user.id;
+    } catch (e) { console.warn('[alertas→conta]', e && e.message ? e.message : e); }
+  }
+
+  function onSession(ev, session) {
+    window.ADP_TOKEN = session ? session.access_token : null;
+    user = session ? session.user : null;
+    renderUser();
+    if (user) {
+      ls.del(GUEST_KEY);                            // quem logou, ao sair volta para a Hero
+      setHero(false); resetGoogleBtn();
+      if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION') setTimeout(() => { saveProfile(); linkPush(); }, 0);
+      return;
+    }
+    profileSavedFor = null; linkedFor = null;
+    if (ev === 'SIGNED_OUT') { ls.del(GUEST_KEY); setHero(true); resetGoogleBtn(); }
+    else if (ev === 'INITIAL_SESSION') { if (ls.get(GUEST_KEY) === '1') setHero(false); else if (!/[?&]admin=/.test(location.search)) setHero(true); }
+  }
+
+  function init() {
+    $('heroGoogle').addEventListener('click', loginGoogle);
+    $('heroGuest').addEventListener('click', () => { ls.set(GUEST_KEY, '1'); setHero(false); renderUser(); });
+    $('userLogin').addEventListener('click', () => { $('heroMsg').textContent = ''; setHero(true); });
+    $('userBtn').addEventListener('click', toggleMenu);
+    $('userLogout').addEventListener('click', async () => {
+      closeMenu();
+      try { if (sb) await sb.auth.signOut(); } catch (e) { console.warn('[logout]', e); }
+      if (user) { window.ADP_TOKEN = null; user = null; renderUser(); ls.del(GUEST_KEY); setHero(true); }   // garante a saída mesmo se a API falhar
+    });
+    document.addEventListener('click', e => { if (!$('userArea').contains(e.target)) closeMenu(); });
+    window.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+    renderUser();
+
+    if (configured && window.supabase && window.supabase.createClient) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+      sb.auth.onAuthStateChange((ev, session) => onSession(ev, session));   // dispara INITIAL_SESSION ao iniciar
+    } else {
+      // sem Supabase (chave não configurada ou biblioteca bloqueada): a Hero continua, mas só o modo visitante funciona
+      if (!configured) console.warn('[login] Defina SUPABASE_ANON_KEY no fim do index.html.');
+      else console.warn('[login] supabase-js não carregou.');
+      if (ls.get(GUEST_KEY) === '1') setHero(false);
+      else if (html.classList.contains('hero-on')) setHero(true);
+    }
+  }
+
+  // supabase-js carrega com defer: espera o DOM e os scripts diferidos
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+  else init();
+})();
 </script>
 </body>
 </html>

@@ -30,10 +30,37 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1); // Render fica atrás de um proxy (req.ip passa a ser o IP real do cliente)
 
-// Mesmos headers globais do netlify.toml
+// Content-Security-Policy: libera só o que o app usa (Binance, corretoras, CDNs, Supabase Auth e Google/foto de perfil).
+const SUPABASE_ORIGIN = 'https://sdtpapapzowtmbakfvfv.supabase.co';
+const SUPABASE_WSS = 'wss://sdtpapapzowtmbakfvfv.supabase.co';
+const CSP = [
+  "default-src 'self'",
+  // Tailwind (CDN) e o index.html usam scripts/estilos inline; o CDN do Tailwind precisa de 'unsafe-eval'
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  `img-src 'self' data: blob: https://*.googleusercontent.com ${SUPABASE_ORIGIN}`,
+  [
+    "connect-src 'self'", SUPABASE_ORIGIN, SUPABASE_WSS, 'https://accounts.google.com', 'https://*.googleusercontent.com',
+    'https://api.binance.com', 'https://data-api.binance.vision', 'wss://stream.binance.com:9443', 'wss://data-stream.binance.vision',
+    'https://api.mercadobitcoin.net', 'https://api.kraken.com', 'https://api.coingecko.com', 'https://economia.awesomeapi.com.br',
+    // o service worker repassa as requisições da página e herda esta política: precisa enxergar também os CDNs
+    'https://cdn.tailwindcss.com', 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'
+  ].join(' '),
+  "frame-src 'self' https://accounts.google.com",
+  "form-action 'self' https://accounts.google.com",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'self'"
+].join('; ');
+
+// Mesmos headers globais do netlify.toml (+ CSP)
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', CSP);
   next();
 });
 
